@@ -7,10 +7,11 @@ const app = express();
 // 从环境变量获取配置
 const CLIENT_ID = process.env.X_API_KEY;
 const CLIENT_SECRET = process.env.X_API_SECRET;
-const REDIRECT_URI = process.env.CALLBACK_URL || `${process.env.VERCEL_URL}/api/callback`;
+const REDIRECT_URI = process.env.CALLBACK_URL;
 const STATE_STRING = 'my-uniq-state-123';
 
-// 路由1: 主页
+// 路由1: 主页 - 提供一个简单的登录按钮
+// 这个路由非常重要！它定义了当有人访问你的网站根目录（'/'）时，应该显示什么内容。
 app.get('/', (req, res) => {
   res.send(`
     <!DOCTYPE html>
@@ -70,7 +71,7 @@ app.get('/', (req, res) => {
   `);
 });
 
-// 路由2: 启动OAuth流程
+// 路由2: 启动OAuth流程 - 将用户重定向到X的授权页面
 app.get('/api/auth', (req, res) => {
   const authUrl = `https://twitter.com/i/oauth2/authorize?${
     querystring.stringify({
@@ -86,7 +87,7 @@ app.get('/api/auth', (req, res) => {
   res.redirect(authUrl);
 });
 
-// 路由3: 回调处理
+// 路由3: 回调处理 - X授权后会带着授权码跳转回这个地址
 app.get('/api/callback', async (req, res) => {
   const { code, state } = req.query;
 
