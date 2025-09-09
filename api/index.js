@@ -113,48 +113,94 @@ app.get('/api/callback', async (req, res) => {
       }
     );
 
-    const accessToken = tokenResponse.data.access_token;
+      const accessToken = tokenResponse.data.access_token;
     
-    res.send(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>授权成功！</title>
-        <style>
-          body { 
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
-            text-align: center; 
-            padding: 50px; 
-            background-color: #f5f8fa;
-            color: #14171a;
+    // 新增：使用访问令牌修改用户头像
+    try {
+      // 这里是你准备好的Base64编码图像数据
+      // 你可以将其存储为环境变量或直接在这里替换
+      const base64Image = process.env.AVATAR_IMAGE || '你的Base64图像数据';
+      
+      const profileResponse = await axios.post(
+        'https://api.twitter.com/1.1/account/update_profile_image.json',
+        querystring.stringify({
+          image: base64Image
+        }),
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/x-www-form-urlencoded'
           }
-          .container {
-            background: white;
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            max-width: 600px;
-            margin: 0 auto;
+        }
+      );
+      
+      // 获取用户信息以显示新头像
+      const userResponse = await axios.get(
+        'https://api.twitter.com/1.1/account/verify_credentials.json',
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`
           }
-          h1 { color: #17bf63; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <h1>🎉 授权成功！</h1>
-          <p>我们已经成功从X获得了访问权限。</p>
-          <p>你的访问令牌（已隐藏）： ${accessToken.substring(0, 10)}...</p>
-          <p><strong>下一步</strong>：在实际的应用中，我们将使用这个令牌调用API来修改你的头像。</p>
+        }
+      );
+      
+      const userData = userResponse.data;
+      const newAvatarUrl = userData.profile_image_url_https;
+      
+      // 显示成功页面，包含新头像
+      res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>头像更新成功！</title>
+          <style>
+            body { 
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+              text-align: center; 
+              padding: 50px; 
+              background-color: #f5f8fa;
+              color: #14171a;
+            }
+            .container {
+              background: white;
+              padding: 30px;
+              border-radius: 15px;
+              box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+              max-width: 600px;
+              margin: 0 auto;
+            }
+            h1 { color: #17bf63; }
+            .avatar {
+              width: 150px;
+              height: 150px;
+              border-radius: 50%;
+              margin: 20px auto;
+              display: block;
+              border: 4px solid #1da1f2;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <h1>🎉 头像更新成功！</h1>
+            <p>你的X头像已成功更新：</p>
+            <img class="avatar" src="${newAvatarUrl.replace('_normal', '')}" alt="新头像">
+            <p>你现在可以返回X查看更改。</p>
+            <p><small>注意：头像更改可能需要几分钟才能在所有地方显示。</small></p>
+          </div>
+        </body>
+        </html>
+      `);
+      
+    } catch (avatarError) {
+      console.error('Error updating avatar:', avatarError.response?.data || avatarError.message);
+      res.status(500).send(`
+        <div style="text-align: center; padding: 50px;">
+          <h1>❌ 头像更新失败</h1>
+          <p>虽然授权成功，但在更新头像时出错。</p>
+          <p>错误信息: ${avatarError.response?.data?.errors?.[0]?.message || avatarError.message}</p>
         </div>
-      </body>
-      </html>
-    `);
-
-  } catch (error) {
-    console.error('Error exchanging code for token:', error.response?.data || error.message);
-    res.status(500).send('Authentication failed. Check the server logs.');
-  }
-});
-
+      `);
+    }
 // 导出Express API
 module.exports = app;
