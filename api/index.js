@@ -11,7 +11,6 @@ const REDIRECT_URI = process.env.CALLBACK_URL;
 const STATE_STRING = 'my-uniq-state-123';
 
 // 路由1: 主页 - 提供一个简单的登录按钮
-// 这个路由非常重要！它定义了当有人访问你的网站根目录（'/'）时，应该显示什么内容。
 app.get('/', (req, res) => {
   res.send(`
     <!DOCTYPE html>
@@ -78,7 +77,7 @@ app.get('/api/auth', (req, res) => {
       response_type: 'code',
       client_id: CLIENT_ID,
       redirect_uri: REDIRECT_URI,
-      scope: 'tweet.read users.read offline.access',
+      scope: 'tweet.read users.read account.write offline.access',
       state: STATE_STRING,
       code_challenge: 'challenge',
       code_challenge_method: 'plain',
@@ -96,6 +95,7 @@ app.get('/api/callback', async (req, res) => {
   }
 
   try {
+    // 1. 使用授权码获取访问令牌
     const tokenResponse = await axios.post(
       'https://api.twitter.com/2/oauth2/token',
       querystring.stringify({
@@ -113,29 +113,27 @@ app.get('/api/callback', async (req, res) => {
       }
     );
 
-        const accessToken = tokenResponse.data.access_token;
+    const accessToken = tokenResponse.data.access_token;
     
-   // 新增：使用访问令牌修改用户头像
-try {
-  // 使用网络图片的URL
-  const imageUrl = process.env.AVATAR_IMAGE_URL || 'https://example.com/path/to/your/image.jpg';
-  
-  const profileResponse = await axios.post(
-    'https://api.twitter.com/1.1/account/update_profile_image.json',
-    querystring.stringify({
-      image: imageUrl  // 使用URL而不是Base64
-    }),
-    {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/x-www-form-urlencoded'
-      }
-    }
-  );
-  
-  // 其余代码保持不变...
+    // 2. 使用访问令牌修改用户头像
+    try {
+      // 使用网络图片的URL
+      const imageUrl = process.env.AVATAR_IMAGE_URL;
       
-      // 获取用户信息以显示新头像
+      const profileResponse = await axios.post(
+        'https://api.twitter.com/1.1/account/update_profile_image.json',
+        querystring.stringify({
+          image: imageUrl
+        }),
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/x-www-form-urlencoded'
+          }
+        }
+      );
+      
+      // 3. 获取用户信息以显示新头像
       const userResponse = await axios.get(
         'https://api.twitter.com/1.1/account/verify_credentials.json',
         {
@@ -148,7 +146,7 @@ try {
       const userData = userResponse.data;
       const newAvatarUrl = userData.profile_image_url_https;
       
-      // 显示成功页面，包含新头像
+      // 4. 显示成功页面，包含新头像
       res.send(`
         <!DOCTYPE html>
         <html>
@@ -199,10 +197,21 @@ try {
         <div style="text-align: center; padding: 50px;">
           <h1>❌ 头像更新失败</h1>
           <p>虽然授权成功，但在更新头像时出错。</p>
-          <p>错误信息: ${avatarError.response?.data?.errors?.[0]?.message || avatarError.message}</p>
+          <p>请检查控制台日志获取更多详细信息。</p>
         </div>
       `);
     }
+
+  } catch (error) {
+    console.error('Error exchanging code for token:', error.response?.data || error.message);
+    res.status(500).send(`
+      <div style="text-align: center; padding: 50px;">
+        <h1>❌ 认证失败</h1>
+        <p>请检查控制台日志获取更多详细信息。</p>
+      </div>
+    `);
+  }
+});
 
 // 导出Express API
 module.exports = app;
