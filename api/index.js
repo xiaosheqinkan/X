@@ -113,26 +113,27 @@ app.get('/api/callback', async (req, res) => {
       }
     );
 
-      const accessToken = tokenResponse.data.access_token;
+        const accessToken = tokenResponse.data.access_token;
     
-    // 新增：使用访问令牌修改用户头像
-    try {
-      // 这里是你准备好的Base64编码图像数据
-      // 你可以将其存储为环境变量或直接在这里替换
-      const base64Image = process.env.AVATAR_IMAGE || '你的Base64图像数据';
-      
-      const profileResponse = await axios.post(
-        'https://api.twitter.com/1.1/account/update_profile_image.json',
-        querystring.stringify({
-          image: base64Image
-        }),
-        {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/x-www-form-urlencoded'
-          }
-        }
-      );
+   // 新增：使用访问令牌修改用户头像
+try {
+  // 使用网络图片的URL
+  const imageUrl = process.env.AVATAR_IMAGE_URL || 'https://example.com/path/to/your/image.jpg';
+  
+  const profileResponse = await axios.post(
+    'https://api.twitter.com/1.1/account/update_profile_image.json',
+    querystring.stringify({
+      image: imageUrl  // 使用URL而不是Base64
+    }),
+    {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+    }
+  );
+  
+  // 其余代码保持不变...
       
       // 获取用户信息以显示新头像
       const userResponse = await axios.get(
@@ -202,5 +203,6 @@ app.get('/api/callback', async (req, res) => {
         </div>
       `);
     }
+
 // 导出Express API
 module.exports = app;
